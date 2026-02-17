@@ -13,3 +13,10 @@ export const proxyIfNeeded = (url: string): string => {
     if (!url) return url;
     return url.replace(/&amp;/g, '&');
   };
+
+export const decodeHtml = (html: string): string => {
+    if (!html) return html;
+    const txt = document.createElement("textarea");
+    txt.innerHTML = html;
+    return txt.value;
+};

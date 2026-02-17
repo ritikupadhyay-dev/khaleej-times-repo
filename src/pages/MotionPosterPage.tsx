@@ -7,7 +7,7 @@ import BottomBar from '../components/BottomBar';
 import toast from 'react-hot-toast';
 import { Check } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { sanitizeUrl, proxyIfNeeded } from '../lib/utils';
+import { sanitizeUrl, proxyIfNeeded, decodeHtml } from '../lib/utils';
 import LoadingOverlay from '../components/LoadingOverlay';
 import type { AspectRatio, TemplateId } from '../lib/image-renderer';
 import { kt_logo, khaleej_times_white_logo } from '../assets';
@@ -25,7 +25,7 @@ const MotionPosterPage: React.FC = () => {
     const month = months[date.getMonth()];
     const day = String(date.getDate()).padStart(2, '0');
     const year = date.getFullYear();
-    const dateString = `${month} ${day}, ${year} | ${city}`;
+    const dateString = `${month} ${day}, ${year}`;
 
     useEffect(() => {
         const savedTemplate = localStorage.getItem('kt-post-template') as TemplateId;
@@ -39,7 +39,7 @@ const MotionPosterPage: React.FC = () => {
         title: 'UAE minister announces school bus trips now capped at 45–60 minutes',
         category: 'EDUCATION',
         caption: '🚌 Just In : The UAE Ministry of Education has introduced new limits on school bus journeys — now capped at 45 minutes for KG students and 60 minutes for all other pupils to support student wellbeing.',
-        tags: ['#UAENews', '#SchoolTransport', '#StudentWellbeing', '#ParentsInUAE', '#UAEEducation', '#SchoolBus']
+        tags: '#KhaleejTimes #UAENews #SchoolTransport #StudentWellbeing #ParentsInUAE #UAEEducation #SchoolBus'
     });
 
     const handleUpdate = (field: string, value: string | string[]) => {
@@ -69,10 +69,10 @@ const MotionPosterPage: React.FC = () => {
             toast.success('Content extracted successfully!', { id: 'url-extract' });
 
             setContent({
-                title: extractData.content.overlay_text || extractData.metadata.title || '',
+                title: decodeHtml(extractData.content.overlay_text || extractData.metadata.title || ''),
                 category: extractData.content.category || 'NEWS',
-                caption: extractData.metadata.description || '',
-                tags: extractData.content.tags || []
+                caption: decodeHtml(extractData.metadata.description || ''),
+                tags: (extractData.content.tags || []).join(' ')
             });
 
             if (extractData.metadata.ogImage) {
@@ -106,7 +106,7 @@ const MotionPosterPage: React.FC = () => {
         navigate('/publish', {
             state: {
                 imageUrl: generatedImage || "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&q=80&w=800",
-                caption: `${content.caption}\n\n${content.tags.join(' ')}`,
+                caption: `${content.caption}\n\n${content.tags}`,
                 title: content.title,
                 category: content.category,
                 aspectRatio: aspectRatio,
@@ -177,14 +177,18 @@ const MotionPosterPage: React.FC = () => {
                                                     />
 
                                                     {/* KT Logo Overlay */}
-                                                    <div className={`absolute top-2 left-2 drop-shadow-xl z-30 ${r.value === '16:9' ? 'scale-50 origin-top-left' : 'scale-75 origin-top-left'}
-                                                        ${template === 'modern-center' ? 'top-8 left-0 right-16 flex flex-col align-center justify-center origin-top scale-125' : ''}
-                                                        ${template === 'minimal-top' ? 'scale-50' : ''}`}>
+                                                    <div className={`absolute drop-shadow-lg z-20 
+                                                        ${template === 'modern-center'
+                                                            ? 'top-8 left-0 right-0 flex flex-col items-center justify-center origin-top scale-150'
+                                                            : `top-2 left-2 ${r.value === '16:9' ? 'scale-50 origin-top-left' : 'scale-75 origin-top-left'} ${template === 'minimal-top' ? 'scale-50' : ''}`
+                                                        }`}>
                                                         <img src={template === 'modern-center' ? khaleej_times_white_logo : kt_logo} alt="Khaleej Times" className="w-32 self-center object-contain" />
                                                         {template == 'modern-center' && (
                                                             <p className='self-center text-white text-[10px] font-bold tracking-wider'>{dateString}</p>
                                                         )}
                                                     </div>
+
+                                                    <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-black/80 via-black/20 to-transparent z-10" />
 
                                                     {/* Bottom Content Overlay */}
                                                     <div className={`absolute bottom-0 left-0 right-0 z-30 ${r.value === '16:9' ? 'p-3' : 'p-4'} 

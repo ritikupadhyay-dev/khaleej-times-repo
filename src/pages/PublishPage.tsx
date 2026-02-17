@@ -10,18 +10,16 @@ import { generateCompositedImage, getBestAspectRatio } from '../lib/image-render
 
 const PublishPage: React.FC = () => {
     const location = useLocation();
-    const { imageUrl, caption, title, category } = location.state || {};
+    const { imageUrl, cards, caption, title, category, aspectRatio, template } = location.state || {};
 
-    const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['Facebook', 'Instagram']);
+    const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['Facebook', 'Instagram', 'Twitter']);
     const [isPublishing, setIsPublishing] = useState(false);
     const [publishStatus, setPublishStatus] = useState<string>('');
 
     const platforms = [
         { name: 'Facebook', id: 'facebook', icon: 'https://cdn-icons-png.flaticon.com/512/124/124010.png', connected: true },
         { name: 'Instagram', id: 'instagram', icon: 'https://cdn-icons-png.flaticon.com/512/174/174855.png', connected: true },
-        // { name: 'Twitter', id: 'twitter', icon: 'https://cdn-icons-png.flaticon.com/512/5968/5968830.png', connected: true },
-        // { name: 'LinkedIn', id: 'linkedin', icon: 'https://cdn-icons-png.flaticon.com/512/174/174857.png', connected: true },
-        // { name: 'YouTube', id: 'youtube', icon: 'https://cdn-icons-png.flaticon.com/512/174/174883.png', connected: true },
+        { name: 'Twitter', id: 'twitter', icon: 'https://cdn-icons-png.flaticon.com/512/5968/5968830.png', connected: true }
     ];
 
     const togglePlatform = (name: string) => {
@@ -33,65 +31,76 @@ const PublishPage: React.FC = () => {
     };
 
     const handlePublish = async () => {
-        if (!imageUrl || !caption) {
+        if ((!imageUrl && !cards) || !caption) {
             toast.error('No media content found to publish');
             return;
         }
 
         const targetPlatforms = selectedPlatforms
-            .filter(p => ['Facebook', 'Instagram'].includes(p))
-            .map(p => p.toLowerCase() as 'facebook' | 'instagram');
+            .filter(p => ['Facebook', 'Instagram', 'Twitter'].includes(p))
+            .map(p => p.toLowerCase() as 'facebook' | 'instagram' | 'twitter');
 
         if (targetPlatforms.length === 0) {
-            toast.error('Please select Facebook or Instagram to publish');
+            toast.error('Please select Facebook or Instagram or Twitter to publish');
             return;
         }
 
         setIsPublishing(true);
-        const toastId = toast.loading('Preparing your creative...');
+        const toastId = toast.loading('Preparing your creatives...');
 
         try {
-            // 1. Render Composited Image
-            setPublishStatus('Rendering branded creative...');
+            const itemsToProcess = cards || [{ image: imageUrl, title, category }];
+            const publicUrls: string[] = [];
 
-            // Determine best aspect ratio based on selected platforms if "Auto" is desired
-            // For now, we use getBestAspectRatio if no specific ratio was passed or if we want to be smart
-            const finalAspectRatio = getBestAspectRatio(selectedPlatforms);
+            // 1. Process each image sequentially
+            for (let i = 0; i < itemsToProcess.length; i++) {
+                const item = itemsToProcess[i];
+                const currentTitle = item.title || title || '';
+                const currentCategory = item.category || category || 'NEWS';
+                const currentImageUrl = item.image || item.imageUrl || imageUrl;
 
-            const compositedBlob = await generateCompositedImage({
-                imageUrl,
-                title: title || '',
-                category: category || 'NEWS',
-                aspectRatio: finalAspectRatio
-            });
+                setPublishStatus(`Rendering card ${i + 1} of ${itemsToProcess.length}...`);
 
-            // 2. Upload to Supabase Storage
-            setPublishStatus('Uploading to cloud storage...');
-            const fileName = `post_${Date.now()}.jpg`;
-            const { error: uploadError } = await supabase.storage
-                .from('kt-social-posts')
-                .upload(fileName, compositedBlob, {
-                    contentType: 'image/jpeg',
-                    upsert: true
+                // A. Render Composited Image
+                const finalAspectRatio = aspectRatio || getBestAspectRatio(selectedPlatforms);
+                const compositedBlob = await generateCompositedImage({
+                    imageUrl: currentImageUrl,
+                    title: currentTitle,
+                    category: currentCategory,
+                    aspectRatio: finalAspectRatio,
+                    template: template,
+                    isFollowUp: i > 0
                 });
 
-            if (uploadError) {
-                console.error('Upload error:', uploadError);
-                throw new Error('Failed to upload image to storage. Make sure "kt-social-posts" bucket exists.');
+                // B. Upload to Supabase Storage
+                setPublishStatus(`Uploading card ${i + 1} to cloud storage...`);
+                const timestamp = Date.now();
+                const fileName = `post_${timestamp}_${i}.jpg`;
+                const { error: uploadError } = await supabase.storage
+                    .from('kt-social-posts')
+                    .upload(fileName, compositedBlob, {
+                        contentType: 'image/jpeg',
+                        upsert: true
+                    });
+
+                if (uploadError) {
+                    console.error('Upload error:', uploadError);
+                    throw new Error(`Failed to upload image ${i + 1} to storage.`);
+                }
+
+                // C. Get Public URL
+                const { data: { publicUrl } } = supabase.storage
+                    .from('kt-social-posts')
+                    .getPublicUrl(fileName);
+
+                publicUrls.push(publicUrl);
             }
 
-            // 3. Get Public URL
-            const { data: { publicUrl } } = supabase.storage
-                .from('kt-social-posts')
-                .getPublicUrl(fileName);
-
-            console.log('Public URL:', publicUrl);
-
-            // 4. Call Publish Function
+            // 2. Call Publish Function (passing imageUrls array)
             setPublishStatus('Publishing to selected platforms...');
             const { data, error } = await supabase.functions.invoke('auto-post-media', {
                 body: {
-                    imageUrl: publicUrl,
+                    imageUrls: publicUrls,
                     caption,
                     platforms: targetPlatforms
                 }

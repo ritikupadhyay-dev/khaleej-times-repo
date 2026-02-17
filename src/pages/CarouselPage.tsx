@@ -7,7 +7,7 @@ import GenerationHeader from '../components/GenerationHeader';
 import BottomBar from '../components/BottomBar';
 import toast from 'react-hot-toast';
 import { supabase } from '../lib/supabase';
-import { sanitizeUrl, proxyIfNeeded } from '../lib/utils';
+import { sanitizeUrl, proxyIfNeeded, decodeHtml } from '../lib/utils';
 import LoadingOverlay from '../components/LoadingOverlay';
 import type { AspectRatio, TemplateId } from '../lib/image-renderer';
 import { kt_logo, khaleej_times_white_logo, default_image } from '../assets';
@@ -20,26 +20,28 @@ const CarouselPage: React.FC = () => {
     const [generatedImage, setGeneratedImage] = useState<string | null>(null);
     const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
     const [template, setTemplate] = useState<TemplateId>('classic');
+    const [selectedCardIndex, setSelectedCardIndex] = useState(0);
     const date = new Date();
     const city = "DUBAI";
     const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
     const month = months[date.getMonth()];
     const day = String(date.getDate()).padStart(2, '0');
     const year = date.getFullYear();
-    const dateString = `${month} ${day}, ${year} | ${city}`;
+    const dateString = `${month} ${day}, ${year}`;
     // Content State
     const [content, setContent] = useState({
         title: 'UAE minister announces school bus trips now capped at 45–60 minutes',
         category: 'EDUCATION',
         caption: '🚌 Just In : The UAE Ministry of Education has introduced new limits on school bus journeys — now capped at 45 minutes for KG students and 60 minutes for all other pupils to support student wellbeing.',
-        tags: ['#UAENews', '#SchoolTransport', '#StudentWellbeing', '#ParentsInUAE', '#UAEEducation', '#SchoolBus']
+        tags: '#KhaleejTimes #UAENews #SchoolTransport #StudentWellbeing #ParentsInUAE #UAEEducation #SchoolBus'
     });
     const [descriptions, setDescriptions] = useState<string[]>([]);
-
 
     useEffect(() => {
         const fetchContext = async () => {
             if (!content.title || !content.caption) return;
+            // Only fetch if we don't have enough descriptions for the current numCards
+            if (descriptions.length === numCards - 1) return;
 
             try {
                 const { data: newData, error: err } = await supabase.functions.invoke('context-generator', {
@@ -77,6 +79,22 @@ const CarouselPage: React.FC = () => {
         setContent((prev: any) => ({ ...prev, [field]: value }));
     };
 
+    const handleCardTitleUpdate = (field: string, newValue: string | string[]) => {
+        if (field !== 'title') {
+            handleUpdate(field, newValue);
+            return;
+        }
+
+        const newTitle = newValue as string;
+        if (selectedCardIndex === 0) {
+            handleUpdate('title', newTitle);
+        } else {
+            const newDesc = [...descriptions];
+            newDesc[selectedCardIndex - 1] = newTitle;
+            setDescriptions(newDesc);
+        }
+    };
+
     const handleUrlBasedGeneration = async (url: string) => {
         setIsGenerating(true);
         try {
@@ -100,10 +118,10 @@ const CarouselPage: React.FC = () => {
             toast.success('Content extracted successfully!', { id: 'url-extract' });
 
             setContent({
-                title: extractData.content.overlay_text || extractData.metadata.title || '',
+                title: decodeHtml(extractData.content.overlay_text || extractData.metadata.title || ''),
                 category: extractData.content.category || 'NEWS',
-                caption: extractData.metadata.description || '',
-                tags: extractData.content.tags || []
+                caption: decodeHtml(extractData.metadata.description || ''),
+                tags: (extractData.content.tags || []).join(' ')
             });
 
             if (extractData.metadata.ogImage) {
@@ -136,8 +154,11 @@ const CarouselPage: React.FC = () => {
     const handleNext = () => {
         navigate('/publish', {
             state: {
+                imageUrl: "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&q=80&w=800",
                 cards: cards,
-                caption: `${content.caption}\n\n${content.tags.join(' ')}`,
+                caption: `${content.caption}\n\n${content.tags}`,
+                title: content.title,
+                category: content.category,
                 aspectRatio: aspectRatio,
                 template: template
             }
@@ -145,7 +166,17 @@ const CarouselPage: React.FC = () => {
     };
 
     const handleIncrement = () => setNumCards(prev => Math.min(prev + 1, 10));
-    const handleDecrement = () => setNumCards(prev => Math.max(prev - 1, 1));
+    const handledecrement = () => {
+        setNumCards(prev => {
+            const next = Math.max(prev - 1, 1);
+            if (selectedCardIndex >= next) {
+                setSelectedCardIndex(next - 1);
+            }
+            return next;
+        });
+    };
+
+    const handleDecrement = () => handledecrement();
 
     // Dynamic cards data
     const cards = Array.from({ length: numCards }).map((_, i) => ({
@@ -233,13 +264,20 @@ const CarouselPage: React.FC = () => {
                             <div className="flex-1 overflow-x-auto overflow-y-hidden p-8 bg-[#fcfcfc] custom-scrollbar">
                                 <div className="flex gap-8 h-full items-center min-w-max">
                                     {cards.map((card, index) => (
-                                        <div key={index} className="flex flex-col gap-3 group">
+                                        <div
+                                            key={index}
+                                            className="flex flex-col gap-3 group cursor-pointer"
+                                            onClick={() => setSelectedCardIndex(index)}
+                                        >
                                             <div className="flex justify-between items-center px-1">
-                                                <span className="text-[10px] font-black text-[#20255c] uppercase tracking-tighter opacity-40 group-hover:opacity-100 transition-opacity">Card {index + 1}</span>
+                                                <span className={`text-[10px] font-black uppercase tracking-tighter transition-opacity ${selectedCardIndex === index ? 'text-[#e1b250] opacity-100' : 'text-[#20255c] opacity-40 group-hover:opacity-100'}`}>
+                                                    Card {index + 1} {selectedCardIndex === index && '• ACTIVE'}
+                                                </span>
                                             </div>
 
                                             <div
-                                                className={`relative bg-white shadow-2xl rounded-sm overflow-hidden border border-gray-200 transition-all duration-500
+                                                className={`relative bg-white shadow-2xl rounded-sm overflow-hidden border transition-all duration-500
+                                                    ${selectedCardIndex === index ? 'ring-4 ring-[#e1b250] border-transparent scale-100' : 'border-gray-200'}
                                                     ${aspectRatio === '1:1' ? 'aspect-square h-[450px]' :
                                                         aspectRatio === '4:5' ? 'aspect-[4/5] h-[450px]' :
                                                             aspectRatio === '16:9' ? 'aspect-[16/9] w-[600px]' :
@@ -253,19 +291,23 @@ const CarouselPage: React.FC = () => {
                                                 />
 
                                                 {/* Branding Overlay */}
-                                                <div className={`absolute top-2 left-2 drop-shadow-lg z-20 ${aspectRatio === '16:9' ? 'scale-50 origin-top-left' : 'scale-75 origin-top-left'}
-                                                    ${template === 'modern-center' ? 'top-8 left-0 right-0 flex flex-col items-center justify-center origin-top scale-125' : ''}
-                                                    ${template === 'minimal-top' ? 'scale-50' : ''}`}>
-                                                    <img src={template === 'modern-center' ? khaleej_times_white_logo : kt_logo} alt="Khaleej Times" className="w-32 self-center object-contain" />
-                                                    {template == 'modern-center' && (
-                                                        <p className='self-center text-white text-[10px] font-bold tracking-wider mt-1'>{dateString}</p>
-                                                    )}
-                                                </div>
+                                                {index === 0 && (
+                                                    <div className={`absolute drop-shadow-lg z-20 
+                                                    ${template === 'modern-center'
+                                                            ? 'top-8 left-0 right-0 flex flex-col items-center justify-center origin-top scale-150'
+                                                            : `top-2 left-2 ${aspectRatio === '16:9' ? 'scale-50 origin-top-left' : 'scale-75 origin-top-left'} ${template === 'minimal-top' ? 'scale-50' : ''}`
+                                                        }`}>
+                                                        <img src={template === 'modern-center' ? khaleej_times_white_logo : kt_logo} alt="Khaleej Times" className="w-32 self-center object-contain" />
+                                                        {template == 'modern-center' && (
+                                                            <p className='self-center text-white text-[10px] font-bold tracking-wider mt-1'>{dateString}</p>
+                                                        )}
+                                                    </div>
+                                                )}
 
-                                                {/* Text Overlay */}
-                                                <div className={`absolute bottom-0 left-0 right-0 z-20 ${aspectRatio === '16:9' ? 'p-6' : 'p-8'} 
-                                                    bg-gradient-to-t from-black/95 via-black/40 to-transparent
-                                                    ${template === 'modern-center' ? 'text-center' : ''}
+                                                <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-black/80 via-black/20 to-transparent z-10" />
+
+                                                <div className={`absolute ${index > 0 ? 'top-28' : 'bottom-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent'} left-0 right-0 z-20 ${aspectRatio === '16:9' ? 'p-6' : 'p-8'} 
+                                                    ${template === 'modern-center' ? 'text-center' : 'text-left'}
                                                     ${template === 'minimal-top' ? 'border-l-4 border-[#e1b250] ml-4 mb-4 pt-1 pb-1 pl-4' : ''}`}>
 
                                                     {template !== 'minimal-top' && index === 0 && (
@@ -293,10 +335,24 @@ const CarouselPage: React.FC = () => {
                         </div>
 
                         {/* Right Side Panel */}
-                        <div className="lg:col-span-4 overflow-y-auto pr-2">
+                        <div className="lg:col-span-4 overflow-y-auto pr-2 space-y-6">
+                            <div className="bg-[#20255c] text-white px-4 py-3 rounded-sm flex items-center justify-between shadow-sm">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-6 h-6 rounded-full bg-[#e1b250] flex items-center justify-center text-[10px] font-black text-[#20255c]">
+                                        {selectedCardIndex + 1}
+                                    </div>
+                                    <span className="text-[11px] font-black uppercase tracking-widest italic">Editing {selectedCardIndex === 0 ? 'Hero Card' : `Card ${selectedCardIndex + 1}`}</span>
+                                </div>
+                                {selectedCardIndex > 0 && (
+                                    <span className="text-[9px] font-bold text-[#e1b250] uppercase tracking-tighter bg-[#e1b250]/10 px-2 py-0.5 rounded-full border border-[#e1b250]/20">Follow-up Card</span>
+                                )}
+                            </div>
+
                             <CaptionControll
                                 {...content}
-                                onUpdate={handleUpdate}
+                                title={selectedCardIndex === 0 ? content.title : (descriptions[selectedCardIndex - 1] || card_title_placeholder)}
+                                isFollowUp={selectedCardIndex > 0}
+                                onUpdate={handleCardTitleUpdate}
                             />
                         </div>
                     </div>
@@ -307,5 +363,7 @@ const CarouselPage: React.FC = () => {
         </BaseLayout>
     );
 };
+
+const card_title_placeholder = "Generating description...";
 
 export default CarouselPage;

@@ -9,6 +9,7 @@ export interface RenderOptions {
     category: string;
     aspectRatio?: AspectRatio;
     template?: TemplateId;
+    isFollowUp?: boolean;
 }
 
 /**
@@ -32,7 +33,7 @@ export const getBestAspectRatio = (platforms: string[]): AspectRatio => {
 };
 
 export const generateCompositedImage = async (options: RenderOptions): Promise<Blob> => {
-    const { imageUrl, title, category, aspectRatio = '1:1' } = options;
+    const { imageUrl, title, category, aspectRatio = '1:1', isFollowUp = false } = options;
 
     // Define dimensions based on aspect ratio (base dimension 1080)
     let width = 1080;
@@ -103,26 +104,43 @@ export const generateCompositedImage = async (options: RenderOptions): Promise<B
                 offsetY = -(drawHeight - height) / 2;
             }
 
-            ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+            if (isFollowUp) {
+                ctx.filter = 'blur(40px) brightness(0.7)';
+                ctx.drawImage(img, offsetX - 50, offsetY - 50, drawWidth + 100, drawHeight + 100);
+                ctx.filter = 'none';
+            } else {
+                ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+            }
+
+            // 1.5 Top Gradient Overlay
+            const topGradientHeight = height * 0.3; // Covers top portion
+            const topGradient = ctx.createLinearGradient(0, 0, 0, topGradientHeight);
+            topGradient.addColorStop(0, 'rgba(0, 0, 0, 0.8)');
+            topGradient.addColorStop(0.4, 'rgba(0, 0, 0, 0.2)');
+            topGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            ctx.fillStyle = topGradient;
+            ctx.fillRect(0, 0, width, topGradientHeight);
 
             // 2. Bottom Gradient Overlay (Height-adjusted)
-            const gradientHeight = height * 0.5;
-            const gradient = ctx.createLinearGradient(0, height - gradientHeight, 0, height);
-            gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
-            gradient.addColorStop(0.7, 'rgba(0, 0, 0, 0.85)');
-            gradient.addColorStop(1, 'rgba(0, 0, 0, 0.95)');
-            ctx.fillStyle = gradient;
-            ctx.fillRect(0, height - gradientHeight, width, gradientHeight);
+            if (!isFollowUp) {
+                const gradientHeight = height * 0.5;
+                const gradient = ctx.createLinearGradient(0, height - gradientHeight, 0, height);
+                gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+                gradient.addColorStop(0.7, 'rgba(0, 0, 0, 0.85)');
+                gradient.addColorStop(1, 'rgba(0, 0, 0, 0.95)');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, height - gradientHeight, width, gradientHeight);
+            }
 
             // 3. Logo and Text Layout based on Template
             const padding = width * 0.055;
             const headlineFontSize = Math.floor(width * 0.06);
             const maxWidth = width - (padding * 2);
-            const lineHeight = headlineFontSize * 1.2;
+            const lineHeight = headlineFontSize * 0.8;
             
             // Helper for Text Wrapping
             const wrapText = (text: string, maxW: number) => {
-                ctx.font = `900 ${headlineFontSize}px 'Rokkitt', serif`;
+                ctx.font = `700 ${headlineFontSize}px 'Rokkitt', serif`;
                 const words = text.split(' ');
                 let line = '';
                 const lines = [];
@@ -141,19 +159,21 @@ export const generateCompositedImage = async (options: RenderOptions): Promise<B
             };
 
             const fullLines = wrapText(title, maxWidth);
-            const maxLines = aspectRatio === '16:9' ? 2 : 4;
+            const maxLines = isFollowUp ? 7 : (aspectRatio === '16:9' ? 2 : 4);
             const lines = fullLines.slice(0, Math.min(fullLines.length, maxLines));
 
             const template = options.template || (localStorage.getItem('kt-post-template') as TemplateId) || 'classic';
 
             if (template === 'classic') {
-                // Logo Top Left
-                const logoWidth = width * 0.15;
-                const logoHeight = (logoImg.height / logoImg.width) * logoWidth;
-                ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
-                ctx.shadowBlur = 15;
-                ctx.drawImage(logoImg, padding, padding, logoWidth, logoHeight);
-                ctx.shadowBlur = 0;
+                if (!isFollowUp) {
+                    // Logo Top Left
+                    const logoWidth = width * 0.15;
+                    const logoHeight = (logoImg.height / logoImg.width) * logoWidth;
+                    ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+                    ctx.shadowBlur = 15;
+                    ctx.drawImage(logoImg, padding, padding, logoWidth, logoHeight);
+                    ctx.shadowBlur = 0;
+                }
 
                 // Category and Title Bottom Left
                 const catPaddingX = padding * 0.4;
@@ -162,41 +182,47 @@ export const generateCompositedImage = async (options: RenderOptions): Promise<B
                 const catText = category.toUpperCase();
                 const catWidth = ctx.measureText(catText).width;
                 const boxHeight = fontSize * 1.8;
-                const spacing = padding * 0.5;
+                const spacing = padding * 0.3;
                 const totalTextHeight = boxHeight + spacing + (lines.length * lineHeight);
                 const marginBottom = aspectRatio === '9:16' ? padding * 2.5 : padding * 1.5;
                 const startY = height - marginBottom - totalTextHeight;
 
-                ctx.fillStyle = '#0070c0';
-                ctx.fillRect(padding, startY, catWidth + (catPaddingX * 2), boxHeight);
-                ctx.fillStyle = '#ffffff';
-                ctx.fillText(catText, padding + catPaddingX, startY + (boxHeight * 0.7));
+                if (!isFollowUp) {
+                    ctx.fillStyle = '#0070c0';
+                    ctx.fillRect(padding, startY, catWidth + (catPaddingX * 2), boxHeight);
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillText(catText, padding + catPaddingX, startY + (boxHeight * 0.7));
+                }
 
-                ctx.font = `900 ${headlineFontSize}px 'Rokkitt', serif`;
-                let currentY = startY + boxHeight + spacing;
+                ctx.font = `700 ${headlineFontSize}px 'Rokkitt', serif`;
+                ctx.fillStyle = '#ffffff';
+                let currentY = isFollowUp ? (height * 0.3) : (startY + boxHeight + spacing);
+                
                 for (const l of lines) {
-                    ctx.fillText(l, padding, currentY + (headlineFontSize * 0.8));
+                    ctx.fillText(l.trim(), padding, currentY + (headlineFontSize * 0.8));
                     currentY += lineHeight;
                 }
             } else if (template === 'modern-center') {
-                // Logo Top Center - Shifted down slightly
-                const logoWidth = width * 0.35; // Enlarged for white logo
-                const logoHeight = (logoImg.height / logoImg.width) * logoWidth;
-                const logoY = height * 0.08; // Shifted down
-                
-                ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
-                ctx.shadowBlur = 20;
-                ctx.drawImage(logoImg, (width - logoWidth) / 2, logoY, logoWidth, logoHeight);
-                ctx.shadowBlur = 0;
+                if (!isFollowUp) {
+                    // Logo Top Center - Shifted down slightly
+                    const logoWidth = width * 0.35; // Enlarged for white logo
+                    const logoHeight = (logoImg.height / logoImg.width) * logoWidth;
+                    const logoY = height * 0.08; // Shifted down
+                    
+                    ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+                    ctx.shadowBlur = 20;
+                    ctx.drawImage(logoImg, (width - logoWidth) / 2, logoY, logoWidth, logoHeight);
+                    ctx.shadowBlur = 0;
 
-                // Date and City below Logo
-                const infoFontSize = Math.floor(width * 0.025);
-                ctx.font = `bold ${infoFontSize}px 'Rokkitt', serif`;
-                ctx.fillStyle = '#ffffff';
-                ctx.textAlign = 'center';
-                const dateText = new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }).toUpperCase();
-                const cityText = "DUBAI";
-                ctx.fillText(`${dateText} | ${cityText}`, width / 2, logoY + logoHeight + (padding * 0.4));
+                    // Date and City below Logo
+                    const infoFontSize = Math.floor(width * 0.025);
+                    ctx.font = `bold ${infoFontSize}px 'Rokkitt', serif`;
+                    ctx.fillStyle = '#ffffff';
+                    ctx.textAlign = 'center';
+                    const dateText = new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }).toUpperCase();
+                    const cityText = "DUBAI";
+                    ctx.fillText(`${dateText}`, width / 2, logoY + logoHeight + (padding * 0.4));
+                }
 
                 // Category and Title Bottom Center
                 const fontSize = Math.floor(width * 0.035);
@@ -204,55 +230,68 @@ export const generateCompositedImage = async (options: RenderOptions): Promise<B
                 const catText = category.toUpperCase();
                 const catWidth = ctx.measureText(catText).width;
                 const boxHeight = fontSize * 1.8;
-                const spacing = padding * 0.6;
+                const spacing = padding * 0.3;
                 const totalTextHeight = boxHeight + spacing + (lines.length * lineHeight);
-                const marginBottom = aspectRatio === '9:16' ? padding * 3 : padding * 2;
+                const marginBottom = aspectRatio === '9:16' ? padding * 2 : padding * 1;
                 const startY = height - marginBottom - totalTextHeight;
 
-                ctx.fillStyle = '#0070c0';
-                ctx.fillRect((width - (catWidth + padding)) / 2, startY, catWidth + padding, boxHeight);
-                ctx.fillStyle = '#ffffff';
-                ctx.fillText(catText, width / 2, startY + (boxHeight * 0.7));
+                if (!isFollowUp) {
+                    ctx.fillStyle = '#0070c0';
+                    ctx.fillRect((width - (catWidth + padding)) / 2, startY, catWidth + padding, boxHeight);
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillText(catText, width / 2, startY + (boxHeight * 0.7));
+                }
 
-                ctx.font = `900 ${headlineFontSize}px 'Rokkitt', serif`;
-                let currentY = startY + boxHeight + spacing;
+                ctx.font = `700 ${headlineFontSize}px 'Rokkitt', serif`;
+                ctx.fillStyle = '#ffffff';
+                let currentY = isFollowUp ? (height * 0.3) : (startY + boxHeight + spacing);
+
+                if (isFollowUp) {
+                    ctx.textAlign = 'center';
+                }
+
                 for (const l of lines) {
                     ctx.fillText(l.trim(), width / 2, currentY + (headlineFontSize * 0.8));
                     currentY += lineHeight;
                 }
                 ctx.textAlign = 'left';
             } else if (template === 'minimal-top') {
-                // Top Border and Logo/Date
-                const logoWidth = width * 0.12;
-                const logoHeight = (logoImg.height / logoImg.width) * logoWidth;
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.moveTo(padding, padding + logoHeight + (padding * 0.4));
-                ctx.lineTo(width - padding, padding + logoHeight + (padding * 0.4));
-                ctx.stroke();
+                if (!isFollowUp) {
+                    // Top Border and Logo/Date
+                    const logoWidth = width * 0.12;
+                    const logoHeight = (logoImg.height / logoImg.width) * logoWidth;
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(padding, padding + logoHeight + (padding * 0.4));
+                    ctx.lineTo(width - padding, padding + logoHeight + (padding * 0.4));
+                    ctx.stroke();
 
-                ctx.drawImage(logoImg, padding, padding, logoWidth, logoHeight);
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-                ctx.font = `bold ${Math.floor(width * 0.025)}px 'Rokkitt', serif`;
-                ctx.textAlign = 'right';
-                ctx.fillText(new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase(), width - padding, padding + (logoHeight * 0.7));
+                    ctx.drawImage(logoImg, padding, padding, logoWidth, logoHeight);
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                    ctx.font = `bold ${Math.floor(width * 0.025)}px 'Rokkitt', serif`;
+                    ctx.textAlign = 'right';
+                    ctx.fillText(new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase(), width - padding, padding + (logoHeight * 0.7));
+                }
                 ctx.textAlign = 'left';
 
                 // Vertical Accent and Title Bottom
                 const accentWidth = width * 0.012;
                 const marginBottom = aspectRatio === '9:16' ? padding * 3 : padding * 2;
                 const totalTextHeight = lines.length * lineHeight;
-                const startY = height - marginBottom - totalTextHeight;
+                const startY = isFollowUp ? (height * 0.3) : (height - marginBottom - totalTextHeight);
 
-                ctx.fillStyle = '#e1b250';
-                ctx.fillRect(padding, startY + (headlineFontSize * 0.2), accentWidth, totalTextHeight);
+                if (!isFollowUp) {
+                    ctx.fillStyle = '#e1b250';
+                    ctx.fillRect(padding, startY + (headlineFontSize * 0.2), accentWidth, totalTextHeight);
+                }
 
-                ctx.font = `italic 900 ${headlineFontSize}px 'Rokkitt', serif`;
+                ctx.font = `italic 700 ${headlineFontSize}px 'Rokkitt', serif`;
                 ctx.fillStyle = '#ffffff';
                 let currentY = startY;
+
                 for (const l of lines) {
-                    ctx.fillText(l, padding + accentWidth + (padding * 0.5), currentY + (headlineFontSize * 0.8));
+                    ctx.fillText(l.trim(), padding, currentY + (headlineFontSize * 0.8));
                     currentY += lineHeight;
                 }
             }

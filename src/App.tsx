@@ -16,7 +16,7 @@ function App() {
         <Route path="/motion" element={<MotionPosterPage />} />
         <Route path="/publish" element={<PublishPage />} />
         <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/" element={<Navigate to="/generate" replace />} />
       </Routes>
     </Router>
   );
