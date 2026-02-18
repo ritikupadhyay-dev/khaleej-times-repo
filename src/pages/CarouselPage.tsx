@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Minus, Plus } from 'lucide-react';
 import BaseLayout from '../components/BaseLayout';
@@ -36,12 +36,16 @@ const CarouselPage: React.FC = () => {
         tags: '#KhaleejTimes #UAENews #SchoolTransport #StudentWellbeing #ParentsInUAE #UAEEducation #SchoolBus'
     });
     const [descriptions, setDescriptions] = useState<string[]>([]);
+    const lastProcessedContent = useRef('');
 
     useEffect(() => {
         const fetchContext = async () => {
             if (!content.title || !content.caption) return;
-            // Only fetch if we don't have enough descriptions for the current numCards
-            if (descriptions.length === numCards - 1) return;
+
+            const currentContentKey = `${content.title}-${content.caption}`;
+            const contentChanged = lastProcessedContent.current !== currentContentKey;
+
+            if (!contentChanged && descriptions.length === numCards - 1) return;
 
             try {
                 const { data: newData, error: err } = await supabase.functions.invoke('context-generator', {
@@ -56,10 +60,9 @@ const CarouselPage: React.FC = () => {
 
                 if (newData?.descriptions) {
                     setDescriptions(newData.descriptions);
+                    lastProcessedContent.current = currentContentKey;
                 }
-
             } catch (error) {
-                toast.error('Failed to generate context');
                 console.error('Error invoking function:', error);
             }
         };

@@ -15,8 +15,8 @@ const LoadingOverlay: React.FC<LoadingOverlayProps> = ({ isVisible, message = "P
                 {/* Premium Logo Animation Container */}
                 <div className="relative mb-16 group">
                     {/* Pulsing Outer Rings */}
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 border border-[#e1b250]/20 rounded-full animate-[ping_3s_linear_infinite]"></div>
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-[#e1b250]/5 rounded-full animate-pulse blur-xl"></div>
+                    {/* <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 border border-[#e1b250]/20 rounded-full animate-[ping_3s_linear_infinite]"></div> */}
+                    {/* <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-[#e1b250]/5 rounded-full animate-pulse blur-xl"></div> */}
 
                     {/* The KT Logo */}
                     <div className="relative z-10 flex flex-col items-center">
