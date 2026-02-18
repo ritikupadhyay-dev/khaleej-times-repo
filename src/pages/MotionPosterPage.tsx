@@ -10,7 +10,7 @@ import { supabase } from '../lib/supabase';
 import { sanitizeUrl, proxyIfNeeded, decodeHtml } from '../lib/utils';
 import LoadingOverlay from '../components/LoadingOverlay';
 import type { AspectRatio, TemplateId } from '../lib/image-renderer';
-import { kt_logo, khaleej_times_white_logo } from '../assets';
+import { kt_logo, khaleej_times_white_logo, demo_gif } from '../assets';
 
 const MotionPosterPage: React.FC = () => {
     const navigate = useNavigate();
@@ -68,10 +68,14 @@ const MotionPosterPage: React.FC = () => {
 
             toast.success('Content extracted successfully!', { id: 'url-extract' });
 
+            // Clean title: prefer metadata title if it's more complete, and remove site suffixes
+            const rawTitle = extractData.metadata.title || extractData.content.overlay_text || '';
+            const cleanedTitle = decodeHtml(rawTitle).split(' | ')[0].split(' - ')[0].trim();
+
             setContent({
-                title: decodeHtml(extractData.content.overlay_text || extractData.metadata.title || ''),
+                title: cleanedTitle,
                 category: extractData.content.category || 'NEWS',
-                caption: decodeHtml(extractData.metadata.description || ''),
+                caption: decodeHtml(extractData.metadata.description || extractData.metadata.ogDescription || ''),
                 tags: (extractData.content.tags || []).join(' ')
             });
 
@@ -134,6 +138,7 @@ const MotionPosterPage: React.FC = () => {
                         onTabChange={setActiveTab}
                         onUrlSubmit={handleUrlBasedGeneration}
                         onImageUpload={handleImageUpload}
+                        comingSoon={activeTab === 'url' || activeTab === 'prompt'}
                     />
 
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-[1400px] mx-auto min-h-[600px]">
@@ -171,7 +176,7 @@ const MotionPosterPage: React.FC = () => {
                                                     {/* Placeholder for Video/Motion Animation */}
                                                     <div className="absolute inset-0 bg-blue-600/5 animate-[pulse_2s_infinite] z-0"></div>
                                                     <img
-                                                        src={generatedImage || "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&q=80&w=800"}
+                                                        src={generatedImage || demo_gif}
                                                         alt={r.label}
                                                         className="w-full h-full object-cover grayscale-[20%] opacity-90"
                                                     />

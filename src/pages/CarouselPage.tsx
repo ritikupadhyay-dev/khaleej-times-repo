@@ -120,10 +120,14 @@ const CarouselPage: React.FC = () => {
 
             toast.success('Content extracted successfully!', { id: 'url-extract' });
 
+            // Clean title: prefer metadata title if it's more complete, and remove site suffixes
+            const rawTitle = extractData.metadata.title || extractData.content.overlay_text || '';
+            const cleanedTitle = decodeHtml(rawTitle).split(' | ')[0].split(' - ')[0].trim();
+
             setContent({
-                title: decodeHtml(extractData.content.overlay_text || extractData.metadata.title || ''),
+                title: cleanedTitle,
                 category: extractData.content.category || 'NEWS',
-                caption: decodeHtml(extractData.metadata.description || ''),
+                caption: decodeHtml(extractData.metadata.description || extractData.metadata.ogDescription || ''),
                 tags: (extractData.content.tags || []).join(' ')
             });
 

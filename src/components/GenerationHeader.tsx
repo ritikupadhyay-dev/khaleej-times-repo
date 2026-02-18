@@ -13,6 +13,7 @@ interface GenerationHeaderProps {
     onUrlSubmit?: (url: string) => void;
     onImageUpload?: (file: File) => void;
     placeholder?: string;
+    comingSoon?: boolean;
 }
 
 const GenerationHeader: React.FC<GenerationHeaderProps> = ({
@@ -21,7 +22,8 @@ const GenerationHeader: React.FC<GenerationHeaderProps> = ({
     onTabChange,
     onUrlSubmit,
     onImageUpload,
-    placeholder
+    placeholder,
+    comingSoon
 }) => {
     const [url, setUrl] = React.useState('');
     const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -79,10 +81,14 @@ const GenerationHeader: React.FC<GenerationHeaderProps> = ({
                         </div>
                         <input
                             type="text"
-                            placeholder="Describe the post you want to generate (e.g., 'A modern city skyline at sunset')"
+                            placeholder={comingSoon ? "Coming Soon" : "Describe the post you want to generate (e.g., 'A modern city skyline at sunset')"}
                             className="w-full bg-[#f8f8f8] border border-gray-200 rounded-sm pl-14 pr-24 py-5 focus:outline-none focus:ring-0 focus:border-[#e1b250] text-[15px] text-gray-600 placeholder:text-gray-400 font-light"
+                            disabled={comingSoon}
                         />
-                        <button className="absolute right-0 top-0 bottom-0 w-20 bg-[#20255c] text-white flex items-center justify-center hover:bg-[#1a1e4a] transition-all">
+                        <button
+                            disabled={comingSoon}
+                            className={`absolute right-0 top-0 bottom-0 w-20 text-white flex items-center justify-center transition-all ${comingSoon ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#20255c] hover:bg-[#1a1e4a]'}`}
+                        >
                             <ArrowRight size={28} strokeWidth={2.5} />
                         </button>
                     </div>
@@ -95,12 +101,14 @@ const GenerationHeader: React.FC<GenerationHeaderProps> = ({
                             value={url}
                             onChange={(e) => setUrl(e.target.value)}
                             onKeyDown={handleKeyDown}
-                            placeholder={placeholder || "https://www.khaleejtimes.com/uae/education/uae-school-bus-trips-duration-capped"}
+                            placeholder={placeholder || comingSoon ? "Coming Soon" : "https://www.khaleejtimes.com/uae/education/uae-school-bus-trips-duration-capped"}
                             className="w-full bg-[#f8f8f8] border border-gray-200 rounded-sm pl-6 pr-24 py-5 focus:outline-none focus:ring-0 focus:border-[#e1b250] text-[15px] text-gray-600 placeholder:text-gray-400 font-light"
+                            disabled={comingSoon}
                         />
                         <button
                             onClick={handleSubmit}
-                            className="absolute right-0 top-0 bottom-0 w-20 bg-[#20255c] text-white flex items-center justify-center hover:bg-[#1a1e4a] transition-all"
+                            disabled={comingSoon}
+                            className={`absolute right-0 top-0 bottom-0 w-20 text-white flex items-center justify-center transition-all ${comingSoon ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#20255c] hover:bg-[#1a1e4a]'}`}
                         >
                             <ArrowRight size={28} strokeWidth={2.5} />
                         </button>
