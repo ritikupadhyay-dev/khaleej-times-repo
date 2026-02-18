@@ -15,7 +15,7 @@ const Sidebar: React.FC = () => {
         { icon: ImageIcon, label: 'Image Posts', path: '/generate' },
         { icon: Layers, label: 'Carousel Posts', path: '/carousel' },
         { icon: Video, label: 'Motion Poster', path: '/motion' },
-        { icon: Library, label: 'Library', path: '/library' },
+        // { icon: Library, label: 'Library', path: '/library' },
     ];
 
     return (

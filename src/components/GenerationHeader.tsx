@@ -116,7 +116,7 @@ const GenerationHeader: React.FC<GenerationHeaderProps> = ({
             case 'prompt':
                 return "Use AI to generate stunning visuals by describing your creative vision";
             default:
-                return "Paste a URL to automatically extract content and generate optimized visuals";
+                return "";
         }
     };
 

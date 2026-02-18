@@ -31,3 +31,21 @@
     background: #d4a345;
   }
 }
+
+.font-black{
+  font-weight:700 !important;
+}
+
+.italic {
+    font-style: normal;
+    letter-spacing: 0em !important;
+    text-transform: uppercase;
+}
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, 
+               "Helvetica Neue", Arial, sans-serif;
+}
+
+.text-lg {
+    font-size: 1.7rem;
+}
